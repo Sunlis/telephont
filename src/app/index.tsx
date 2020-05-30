@@ -5,7 +5,7 @@ class App extends React.Component {
   render () {
     return (
       <div>
-        <span>waddup</span>
+        <span>re-learning git time pogg champ</span>
       </div>
     );
   }
