@@ -1,0 +1,14 @@
+{
+  "ignore": [".git", "node_modules", "dist", "assets", "static"],
+  "watch": [
+    "src",
+    "types",
+    "config",
+    "tsconfig.json",
+    ".eslintrc",
+    "webpack.config.js",
+    "nodemon.json"
+  ],
+  "ext": "ts, tsx",
+  "exec": "npm start"
+}

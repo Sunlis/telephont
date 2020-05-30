@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "allowUnreachableCode": true,
+    "baseUrl": ".",
+    "declaration": true,
+    "esModuleInterop": true,
+    "lib": [
+      "es2017",
+      "es2018",
+      "es2019",
+      "dom"
+    ],
+    "jsx": "react",
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "outDir": "dist/srv",
+    "pretty": true,
+    "removeComments": true,
+    "resolveJsonModule": true,
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2018",
+    "typeRoots": [
+      "./types",
+      "node_modules/@types"
+    ]
+  },
+  "compileOnSave": false,
+  "include": [
+    "src"
+  ]
+}
