@@ -6,6 +6,9 @@
         './static',
         './dist/app'
       ],
+      '/icons': [
+        './static/icons',
+      ],
     },
   }
 }
