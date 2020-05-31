@@ -2,6 +2,8 @@ import * as React from 'react';
 import {render} from 'react-dom';
 import * as _ from 'lodash';
 
+import {RGBColor} from 'react-color';
+
 const CANVAS_WIDTH = 720;
 const CANVAS_HEIGHT = 480;
 
@@ -24,19 +26,21 @@ type Point = {
   y: number,
 };
 
-type CustomImageData = {
-  width: number,
-  height: number,
-  data: Uint32Array,
-};
-
 type CanvasProps = {
   tool: Tool,
+  color: RGBColor,
+  size: number,
 };
 type CanvasState = {};
 
+const colorString = (color: RGBColor): string => {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+};
+
+const WHITE: RGBColor = {r: 255, g: 255, b: 255, a:1};
+
 export class Canvas extends React.Component<CanvasProps, CanvasState> {
-  
+
   private canvas = React.createRef<HTMLCanvasElement>();
   private lastMousePosition: Point = {x:0, y:0};
 
@@ -50,7 +54,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.canvas.current.addEventListener('pointerdown', this.mouseDown);
     const ctx = this.canvas.current.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+    ctx.fillStyle = colorString(WHITE);
     ctx.fillRect(0, 0, this.canvas.current.width, this.canvas.current.height);
   }
 
@@ -77,7 +81,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (this.props.tool == Tool.PENCIL || this.props.tool == Tool.ERASER) {
       this.setupActiveListeners();
       this.lastMousePosition = mousePos;
-      this.draw(mousePos, mousePos, 5, 'rgb(0, 0, 0)');
+      this.draw(mousePos, mousePos, 5, colorString(this.props.color));
     } else if (this.props.tool == Tool.BUCKET) {
       this.startFloodFill(mousePos);
     }
@@ -86,7 +90,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
   mouseMove = (e: PointerEvent) => {
     e.preventDefault();
     const mousePos = {x: e.offsetX, y: e.offsetY};
-    this.draw(this.lastMousePosition, mousePos, 5, 'rgb(0, 0, 0)');
+    this.draw(this.lastMousePosition, mousePos, 5, colorString(this.props.color));
     this.lastMousePosition = mousePos;
   }
 
@@ -107,11 +111,11 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     } else if (this.props.tool == Tool.ERASER) {
       // Draw white instead of doing a "real" erase
       // or the fill tool won't work as expected.
-      ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+      ctx.strokeStyle = colorString(WHITE);
       ctx.globalCompositeOperation = 'source-over';
       // ctx.globalCompositeOperation = 'destination-out';
     }
-    ctx.lineWidth = width;
+    ctx.lineWidth = this.props.size;
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
     ctx.lineTo(to.x, to.y);
@@ -123,11 +127,24 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (!this.canvas || !this.canvas.current) return;
     const ctx = this.canvas.current.getContext('2d');
     if (!ctx) return;
+    point = {
+      x: Math.round(point.x),
+      y: Math.round(point.y),
+    }
     const matcher = ctx.getImageData(point.x, point.y, 1, 1);
     const pixelData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.save();
     const newPixelData = this.floodFill(
-        point, matcher, pixelData, ctx, [0, 0, 0, 255]);
+        point,
+        matcher,
+        pixelData,
+        ctx,
+        [
+          this.props.color.r,
+          this.props.color.g,
+          this.props.color.b,
+          (this.props.color.a || 1) * 255,
+        ]);
     ctx.putImageData(newPixelData, 0, 0);
     ctx.restore();
   }

@@ -4,6 +4,14 @@ import * as React from 'react';
 import {render} from 'react-dom';
 import {jsx, css, SerializedStyles} from '@emotion/core';
 
+import {
+  AlphaPicker,
+  Color,
+  ColorResult,
+  CompactPicker,
+  RGBColor,
+} from 'react-color';
+
 import {Canvas, Tool} from './canvas';
 
 const styles = {
@@ -11,12 +19,12 @@ const styles = {
     display: 'inline-flex',
     border: '2px solid red',
     padding: 16,
-    flexDirection: 'row',
+    flexDirection: 'column',
   },
   toolbar: {
-    padding: '0 8',
+    margin: '8px 0',
     display: 'inline-flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
   },
   icon: {
     color: 'inherit',
@@ -31,6 +39,15 @@ const styles = {
     border: '1px solid black',
     margin: '0 8px 8px 0',
   },
+  picker: {
+    width: 240,
+    display: 'inline-flex',
+    flexDirection: 'column',
+  },
+  colorPicker: {
+    margin: '0 0 16px 0',
+  },
+  alphaPicker: {},
 } as {[key: string]: React.CSSProperties};
 
 const fancyStyles = {
@@ -40,6 +57,8 @@ const fancyStyles = {
 type DrawpadProps = {};
 type DrawpadState = {
   tool: Tool,
+  color: RGBColor,
+  size: number,
 };
 
 export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
@@ -47,6 +66,8 @@ export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
     super(props);
     this.state = {
       tool: Tool.PENCIL,
+      color: {r: 255, g: 0, b: 0, a: 1},
+      size: 10,
     };
   }
 
@@ -54,6 +75,16 @@ export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
     return () => {
       this.setState({tool});
     }
+  }
+
+  onColorChange = (result: ColorResult) => {
+    this.setState({color: result.rgb});
+  }
+
+  onSizeChange = (e: React.FormEvent) => {
+    this.setState({
+      size: parseInt((e.target as HTMLInputElement).value, 10),
+    });
   }
 
   render() {
@@ -80,7 +111,11 @@ export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
     }
     return (
       <div style={styles.container}>
-        <Canvas tool={this.state.tool} />
+        <Canvas
+            color={this.state.color}
+            tool={this.state.tool}
+            size={this.state.size}
+            />
         <div style={styles.toolbar}>
           <button
               css={css(pencilStyle)}
@@ -97,6 +132,31 @@ export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
               onClick={this.changeTool(Tool.BUCKET)}>
             <img style={styles.icon} src="/icons/paint.svg" />
           </button>
+          <div>
+            <label>
+              Size ({this.state.size})
+              <input
+                  type="range" min="0" max="100"
+                  value={this.state.size}
+                  onChange={this.onSizeChange}
+                  />
+            </label>
+          </div>
+        </div>
+        <div style={styles.picker}>
+          <div style={styles.colorPicker}>
+            <CompactPicker
+                color={this.state.color}
+                onChangeComplete={this.onColorChange}
+                />
+          </div>
+          <div style={styles.alphaPicker}>
+            <AlphaPicker
+                width="240"
+                color={this.state.color}
+                onChange={this.onColorChange}
+                />
+          </div>
         </div>
       </div>
     );

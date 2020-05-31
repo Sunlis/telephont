@@ -23,6 +23,7 @@
     "nanoid-dictionary": "^3.0.0",
     "node-fetch": "^2.6.0",
     "react": "^16.12.0",
+    "react-color": "^2.18.1",
     "react-dom": "^16.12.0",
     "socket.io": "^2.3.0",
     "socket.io-client": "^2.3.0"
@@ -35,6 +36,7 @@
     "@types/node": "^13.7.4",
     "@types/node-fetch": "^2.5.5",
     "@types/react": "^16.9.22",
+    "@types/react-color": "^3.0.2",
     "@types/react-dom": "^16.9.5",
     "@types/socket.io": "^2.1.4",
     "@types/socket.io-client": "^1.4.32",
