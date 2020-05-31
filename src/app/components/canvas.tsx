@@ -64,15 +64,13 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   setupActiveListeners() {
-    if (!this.canvas || !this.canvas.current) return;
-    this.canvas.current.addEventListener('pointermove', this.mouseMove);
-    this.canvas.current.addEventListener('pointerup', this.mouseUp);
+    window.addEventListener('pointermove', this.mouseMove, true);
+    window.addEventListener('pointerup', this.mouseUp, true);
   }
 
   removeActiveListeners() {
-    if (!this.canvas || !this.canvas.current) return;
-    this.canvas.current.removeEventListener('pointermove', this.mouseMove);
-    this.canvas.current.removeEventListener('pointerup', this.mouseUp);
+    window.removeEventListener('pointermove', this.mouseMove, true);
+    window.removeEventListener('pointerup', this.mouseUp, true);
   }
 
   mouseDown = (e: PointerEvent) => {
