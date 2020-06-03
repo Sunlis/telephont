@@ -158,6 +158,14 @@ export class Drawpad extends React.Component<DrawpadProps, DrawpadState> {
                 />
           </div>
         </div>
+        <div>
+          <div>R {this.state.color.r}</div>
+          <div>G {this.state.color.g}</div>
+          <div>B {this.state.color.b}</div>
+          <div>A {this.state.color.a}</div>
+          <div>size {this.state.size}</div>
+          <div>tool {this.state.tool}</div>
+        </div>
       </div>
     );
   }

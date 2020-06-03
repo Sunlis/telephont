@@ -55,6 +55,17 @@ const colorString = (color: RGBColor): string => {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
 };
 
+const stripAlpha = (color: RGBColor): RGBColor => {
+  return {...color, a: 1};
+};
+
+const getAlpha = (color: RGBColor, fallback: number = 1): number => {
+  if (color.a == null || color.a == undefined) {
+    return fallback;
+  }
+  return color.a;
+};
+
 const WHITE: RGBColor = {r: 255, g: 255, b: 255, a:1};
 
 export class Canvas extends React.Component<CanvasProps, CanvasState> {
@@ -140,7 +151,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (this.props.tool == Tool.PENCIL) {
-      ctx.strokeStyle = colorString({...color, a: 1});
+      ctx.strokeStyle = colorString(stripAlpha(color));
       ctx.globalCompositeOperation = 'source-over';
     } else if (this.props.tool == Tool.ERASER) {
       // Draw white instead of doing a "real" erase
@@ -165,7 +176,8 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     // OK so this is some shit I don't really understand.
     // But basically browser opacity != canvas alpha
     // So we have to adjust for this, which is approx a 85% diff
-    baseCtx.globalAlpha = (this.props.color.a == undefined ? 1 : this.props.color.a) * 0.85;
+    baseCtx.globalAlpha = getAlpha(this.props.color) * 0.85;
+    console.log('alpha', this.props.color.a, baseCtx.globalAlpha);
     baseCtx.drawImage(drawingCtx.canvas, 0, 0);
     baseCtx.restore();
     drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
@@ -191,7 +203,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
           this.props.color.r,
           this.props.color.g,
           this.props.color.b,
-          (this.props.color.a == undefined ? 1 : this.props.color.a) * 255,
+          getAlpha(this.props.color) * 255,
         ]);
     ctx.putImageData(newPixelData, 0, 0);
     ctx.restore();
@@ -271,7 +283,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
   render () {
     const drawingLayerStyle = {
       ...styles.drawingLayer,
-      opacity: (this.props.color.a == undefined ? 1 : this.props.color.a),
+      opacity: getAlpha(this.props.color),
     }
     return (
       <div style={styles.container}>
