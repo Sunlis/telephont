@@ -152,6 +152,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     ctx.lineJoin = 'round';
     if (this.props.tool == Tool.PENCIL) {
       ctx.strokeStyle = colorString(stripAlpha(color));
+      console.log('drawing with style', ctx.strokeStyle);
       ctx.globalCompositeOperation = 'source-over';
     } else if (this.props.tool == Tool.ERASER) {
       // Draw white instead of doing a "real" erase
@@ -176,8 +177,8 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     // OK so this is some shit I don't really understand.
     // But basically browser opacity != canvas alpha
     // So we have to adjust for this, which is approx a 85% diff
-    baseCtx.globalAlpha = getAlpha(this.props.color) * 0.85;
-    console.log('alpha', this.props.color.a, baseCtx.globalAlpha);
+    baseCtx.globalAlpha = getAlpha(this.props.color);// * 0.85;
+    console.log('alpha', baseCtx.globalAlpha, drawingCtx.canvas.style.opacity);
     baseCtx.drawImage(drawingCtx.canvas, 0, 0);
     baseCtx.restore();
     drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
