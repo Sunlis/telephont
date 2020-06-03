@@ -8,12 +8,30 @@ const CANVAS_WIDTH = 720;
 const CANVAS_HEIGHT = 480;
 
 const styles = {
-  canvas: {
-    border: '1px solid black',
+  container: {
+    position: 'relative',
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
   },
-};
+  canvas: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    border: '1px dashed black',
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+  },
+  drawingLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    // visibility: 'hidden',
+    border: '1px dotted black',
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    pointerEvents: 'none',
+  }
+} as {[key: string]: React.CSSProperties};
 
 export enum Tool {
   PENCIL = 0,
@@ -42,6 +60,7 @@ const WHITE: RGBColor = {r: 255, g: 255, b: 255, a:1};
 export class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   private canvas = React.createRef<HTMLCanvasElement>();
+  private drawingLayer = React.createRef<HTMLCanvasElement>();
   private lastMousePosition: Point = {x:0, y:0};
 
   constructor(props: CanvasProps) {
@@ -73,13 +92,30 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     window.removeEventListener('pointerup', this.mouseUp, true);
   }
 
+  getBaseContext(): CanvasRenderingContext2D|null {
+    if (this.canvas && this.canvas.current) {
+      return this.canvas.current.getContext('2d');
+    }
+    return null;
+  }
+
+  getDrawingContext(): CanvasRenderingContext2D|null {
+    if (this.drawingLayer && this.drawingLayer.current) {
+      return this.drawingLayer.current.getContext('2d');
+    }
+    return null;
+  }
+
   mouseDown = (e: PointerEvent) => {
     e.preventDefault();
+    const baseCtx = this.getBaseContext();
+    const drawingCtx = this.getDrawingContext();
+    if (!baseCtx || !drawingCtx) return;
     const mousePos = {x: e.offsetX, y: e.offsetY};
     if (this.props.tool == Tool.PENCIL || this.props.tool == Tool.ERASER) {
       this.setupActiveListeners();
       this.lastMousePosition = mousePos;
-      this.draw(mousePos, mousePos, 5, colorString(this.props.color));
+      this.draw(mousePos, mousePos, 5, this.props.color, drawingCtx);
     } else if (this.props.tool == Tool.BUCKET) {
       this.startFloodFill(mousePos);
     }
@@ -87,24 +123,24 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   mouseMove = (e: PointerEvent) => {
     e.preventDefault();
+    const drawingCtx = this.getDrawingContext();
+    if (!drawingCtx) return;
     const mousePos = {x: e.offsetX, y: e.offsetY};
-    this.draw(this.lastMousePosition, mousePos, 5, colorString(this.props.color));
+    this.draw(this.lastMousePosition, mousePos, 5, this.props.color, drawingCtx);
     this.lastMousePosition = mousePos;
   }
 
   mouseUp = (e: PointerEvent) => {
     this.removeActiveListeners();
+    this.copyAndClearDrawingLayer();
   }
 
-  draw(from: Point, to: Point, width: number, color: string) {
-    if (!this.canvas || !this.canvas.current) return;
-    const ctx = this.canvas.current.getContext('2d');
-    if (!ctx) return;
+  draw(from: Point, to: Point, width: number, color: RGBColor, ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (this.props.tool == Tool.PENCIL) {
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = colorString({...color, a: 1});
       ctx.globalCompositeOperation = 'source-over';
     } else if (this.props.tool == Tool.ERASER) {
       // Draw white instead of doing a "real" erase
@@ -119,6 +155,20 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     ctx.lineTo(to.x, to.y);
     ctx.stroke();
     ctx.restore();
+  }
+
+  copyAndClearDrawingLayer() {
+    const baseCtx = this.getBaseContext();
+    const drawingCtx = this.getDrawingContext();
+    if (!baseCtx || !drawingCtx) return;
+    baseCtx.save();
+    // OK so this is some shit I don't really understand.
+    // But basically browser opacity != canvas alpha
+    // So we have to adjust for this, which is approx a 85% diff
+    baseCtx.globalAlpha = (this.props.color.a == undefined ? 1 : this.props.color.a) * 0.85;
+    baseCtx.drawImage(drawingCtx.canvas, 0, 0);
+    baseCtx.restore();
+    drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
   }
 
   startFloodFill(point: Point) {
@@ -141,7 +191,7 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
           this.props.color.r,
           this.props.color.g,
           this.props.color.b,
-          (this.props.color.a || 1) * 255,
+          (this.props.color.a == undefined ? 1 : this.props.color.a) * 255,
         ]);
     ctx.putImageData(newPixelData, 0, 0);
     ctx.restore();
@@ -219,13 +269,25 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   render () {
+    const drawingLayerStyle = {
+      ...styles.drawingLayer,
+      opacity: (this.props.color.a == undefined ? 1 : this.props.color.a),
+    }
     return (
-      <canvas
-          ref = {this.canvas}
-          style = {styles.canvas}
-          width = {CANVAS_WIDTH}
-          height = {CANVAS_HEIGHT}
-          ></canvas>
+      <div style={styles.container}>
+        <canvas
+            ref={this.canvas}
+            style={styles.canvas}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            ></canvas>
+        <canvas
+            ref={this.drawingLayer}
+            style={drawingLayerStyle}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            ></canvas>
+      </div>
     );
   }
 }
