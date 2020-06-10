@@ -8,12 +8,30 @@ const CANVAS_WIDTH = 720;
 const CANVAS_HEIGHT = 480;
 
 const styles = {
-  canvas: {
-    border: '1px solid black',
+  container: {
+    position: 'relative',
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
   },
-};
+  canvas: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    border: '1px dashed black',
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+  },
+  drawingLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 400,
+    // visibility: 'hidden',
+    border: '1px dotted black',
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    pointerEvents: 'none',
+  }
+} as {[key: string]: React.CSSProperties};
 
 export enum Tool {
   PENCIL = 0,
@@ -37,12 +55,25 @@ const colorString = (color: RGBColor): string => {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
 };
 
+const stripAlpha = (color: RGBColor): RGBColor => {
+  return {...color, a: 1};
+};
+
+const getAlpha = (color: RGBColor, fallback: number = 1): number => {
+  if (color.a == null || color.a == undefined) {
+    return fallback;
+  }
+  return color.a;
+};
+
 const WHITE: RGBColor = {r: 255, g: 255, b: 255, a:1};
 
 export class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   private canvas = React.createRef<HTMLCanvasElement>();
+  private drawingLayer = React.createRef<HTMLCanvasElement>();
   private lastMousePosition: Point = {x:0, y:0};
+  private strokePath: Point[] = [];
 
   constructor(props: CanvasProps) {
     super(props);
@@ -73,13 +104,36 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     window.removeEventListener('pointerup', this.mouseUp, true);
   }
 
+  getBaseContext(): CanvasRenderingContext2D|null {
+    if (this.canvas && this.canvas.current) {
+      return this.canvas.current.getContext('2d');
+    }
+    return null;
+  }
+
+  getDrawingContext(): CanvasRenderingContext2D|null {
+    if (this.drawingLayer && this.drawingLayer.current) {
+      return this.drawingLayer.current.getContext('2d');
+    }
+    return null;
+  }
+
+  getColorForTool(): RGBColor {
+    if (this.props.tool == Tool.ERASER) {
+      return WHITE;
+    }
+    return this.props.color;
+  }
+
   mouseDown = (e: PointerEvent) => {
     e.preventDefault();
+    this.strokePath = [];
     const mousePos = {x: e.offsetX, y: e.offsetY};
     if (this.props.tool == Tool.PENCIL || this.props.tool == Tool.ERASER) {
       this.setupActiveListeners();
+      this.strokePath.push(mousePos);
       this.lastMousePosition = mousePos;
-      this.draw(mousePos, mousePos, 5, colorString(this.props.color));
+      this.draw(this.strokePath, this.props.size, this.getColorForTool());
     } else if (this.props.tool == Tool.BUCKET) {
       this.startFloodFill(mousePos);
     }
@@ -87,38 +141,76 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   mouseMove = (e: PointerEvent) => {
     e.preventDefault();
+    const drawingCtx = this.getDrawingContext();
+    if (!drawingCtx) return;
     const mousePos = {x: e.offsetX, y: e.offsetY};
-    this.draw(this.lastMousePosition, mousePos, 5, colorString(this.props.color));
+    this.strokePath.push(mousePos);
     this.lastMousePosition = mousePos;
+    if (this.props.tool == Tool.PENCIL || this.props.tool == Tool.ERASER) {
+      this.draw(this.strokePath, this.props.size, this.getColorForTool());
+    }
   }
 
   mouseUp = (e: PointerEvent) => {
     this.removeActiveListeners();
+    this.copyAndClearDrawingLayer();
   }
 
-  draw(from: Point, to: Point, width: number, color: string) {
-    if (!this.canvas || !this.canvas.current) return;
-    const ctx = this.canvas.current.getContext('2d');
+  erase(from: Point, to: Point, width: number) {
+    const ctx = this.getBaseContext();
     if (!ctx) return;
     ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    if (this.props.tool == Tool.PENCIL) {
-      ctx.strokeStyle = color;
-      ctx.globalCompositeOperation = 'source-over';
-    } else if (this.props.tool == Tool.ERASER) {
-      // Draw white instead of doing a "real" erase
-      // or the fill tool won't work as expected.
-      ctx.strokeStyle = colorString(WHITE);
-      ctx.globalCompositeOperation = 'source-over';
-      // ctx.globalCompositeOperation = 'destination-out';
-    }
-    ctx.lineWidth = this.props.size;
+    // Draw white instead of doing a "real" erase
+    // or the fill tool won't work as expected.
+    ctx.strokeStyle = colorString(WHITE);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = width;
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
     ctx.lineTo(to.x, to.y);
     ctx.stroke();
     ctx.restore();
+  }
+
+  draw(path: Point[], width: number, color: RGBColor) {
+    const baseCtx = this.getBaseContext();
+    const drawingCtx = this.getDrawingContext();
+    if (!baseCtx || !drawingCtx) return;
+    drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
+    drawingCtx.drawImage(baseCtx.canvas, 0, 0);
+
+    this.drawPath(path, width, color, drawingCtx);
+  }
+
+  drawPath(path: Point[], width: number, color: RGBColor, ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = colorString(stripAlpha(color));
+    ctx.globalAlpha = getAlpha(color);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(path[0]!.x, path[0]!.y);
+    path.forEach((point) => {
+      ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  copyAndClearDrawingLayer() {
+    const baseCtx = this.getBaseContext();
+    const drawingCtx = this.getDrawingContext();
+    if (!baseCtx || !drawingCtx) return;
+    // drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
+    // this.drawPath(this.strokePath, this.props.size, this.getColorForTool(), baseCtx);
+    baseCtx.save();
+    // baseCtx.globalAlpha = getAlpha(this.props.color);// * 0.85;
+    // console.log('alpha', baseCtx.globalAlpha, drawingCtx.canvas.style.opacity);
+    baseCtx.drawImage(drawingCtx.canvas, 0, 0);
+    baseCtx.restore();
+    drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
   }
 
   startFloodFill(point: Point) {
@@ -132,17 +224,13 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
     const matcher = ctx.getImageData(point.x, point.y, 1, 1);
     const pixelData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.save();
+    const color = this.getColorForTool();
     const newPixelData = this.floodFill(
         point,
         matcher,
         pixelData,
         ctx,
-        [
-          this.props.color.r,
-          this.props.color.g,
-          this.props.color.b,
-          (this.props.color.a || 1) * 255,
-        ]);
+        [color.r, color.g, color.b, getAlpha(color) * 255]);
     ctx.putImageData(newPixelData, 0, 0);
     ctx.restore();
   }
@@ -219,13 +307,25 @@ export class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   render () {
+    const drawingLayerStyle = {
+      ...styles.drawingLayer,
+      // opacity: getAlpha(this.props.color),
+    }
     return (
-      <canvas
-          ref = {this.canvas}
-          style = {styles.canvas}
-          width = {CANVAS_WIDTH}
-          height = {CANVAS_HEIGHT}
-          ></canvas>
+      <div style={styles.container}>
+        <canvas
+            ref={this.canvas}
+            style={styles.canvas}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            ></canvas>
+        <canvas
+            ref={this.drawingLayer}
+            style={drawingLayerStyle}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            ></canvas>
+      </div>
     );
   }
 }
