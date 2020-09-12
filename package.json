@@ -21,7 +21,7 @@
     "lodash": "^4.17.15",
     "nanoid": "^2.1.11",
     "nanoid-dictionary": "^3.0.0",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "react": "^16.12.0",
     "react-color": "^2.18.1",
     "react-dom": "^16.12.0",
